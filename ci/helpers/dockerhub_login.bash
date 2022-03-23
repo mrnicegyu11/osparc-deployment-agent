@@ -20,12 +20,12 @@ if [ ! -v OWNER ]; then
 fi
 
 # only upstream is allowed to push to itisfoundation repo
-if [ "${OWNER,,}" != "itisfoundation" ] &&\
-    { [ ! -v DOCKER_REGISTRY ] || [ -z "${DOCKER_REGISTRY}" ] || [ "$DOCKER_REGISTRY" = "itisfoundation" ]; }; then
-    echo "## ERROR: it is not allowed to push to the main dockerhub repository from a fork!"
-    echo "## Please adapt your CI-defined environs (DOCKER_USERNAME, DOCKER_PASSWORD, DOCKER_REGISTRY)"
-    exit 1
-fi
+#if [ "${OWNER,,}" != "itisfoundation" ] &&\
+#    { [ ! -v DOCKER_REGISTRY ] || [ -z "${DOCKER_REGISTRY}" ] || [ "$DOCKER_REGISTRY" = "itisfoundation" ]; }; then
+#    echo "## ERROR: it is not allowed to push to the main dockerhub repository from a fork!"
+#    echo "## Please adapt your CI-defined environs (DOCKER_USERNAME, DOCKER_PASSWORD, DOCKER_REGISTRY)"
+#    exit 1
+#fi
 
 # these variable must be available securely from the CI
 echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
