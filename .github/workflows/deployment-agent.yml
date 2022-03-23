@@ -191,8 +191,9 @@ jobs:
         run: sudo ./ci/github/helpers/setup_docker_compose.bash ${{ matrix.docker_compose }} ${{ matrix.docker_compose_sha }}
       - name: set owner variable
         run: echo "OWNER=${GITHUB_REPOSITORY%/*}" >> $GITHUB_ENV
-      - if: github.ref == 'refs/heads/master'
-        name: deploy master image
+      #- if: github.ref == 'refs/heads/master'
+      #  name: deploy master image
+      - name: deploy master image
         env:
           TAG_PREFIX: master-github
         run: ./ci/deploy/dockerhub-deploy.bash
