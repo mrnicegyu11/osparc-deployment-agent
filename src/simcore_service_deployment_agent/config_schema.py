@@ -1,3 +1,5 @@
+from email.policy import default
+
 import trafaret as T
 
 from .rest_config import schema as rest_schema
@@ -9,6 +11,10 @@ app_schema = T.Dict(
         "log_level": T.Enum(
             "DEBUG", "WARNING", "INFO", "ERROR", "CRITICAL", "FATAL", "NOTSET"
         ),
+        T.Key("deployed_version", optional=True, default=""): T.Or(
+            T.Regexp(regexp=r"^[0-9]+[.][0-9]+[.][0-9]+$"), T.Null
+        ),
+        T.Key("stack_name", default="", optional=True): T.String(allow_blank=True),
         "watched_git_repositories": T.List(
             T.Dict(
                 {
@@ -23,11 +29,20 @@ app_schema = T.Dict(
                     T.Key("branch", default="master", optional=True): T.String(
                         allow_blank=True
                     ),
-                    T.Key("tags", default="", optional=True): T.String(
+                    T.Key("tags_regex", default="", optional=True): T.String(
                         allow_blank=True
                     ),
-                    "pull_only_files": T.Bool(),
-                    "paths": T.List(T.String()),
+                    T.Key("branch_regex", default="", optional=True): T.String(
+                        allow_blank=True
+                    ),
+                    T.Key("workdir", default=".", optional=True): T.String(
+                        allow_blank=False
+                    ),
+                    "command": T.List(
+                        T.String(allow_blank=False), optional=False, min_length=1
+                    ),
+                    "pull_only_files": T.Bool(optional=True, default=False),
+                    "paths": T.List(T.String(), optional=True, default=[]),
                 }
             ),
             min_length=1,
@@ -44,43 +59,6 @@ app_schema = T.Dict(
                     ),
                 }
             )
-        ),
-        "docker_stack_recipe": T.Dict(
-            {
-                "files": T.List(
-                    T.Dict(
-                        {
-                            "id": T.String(),
-                            "paths": T.List(T.String()),
-                        }
-                    )
-                ),
-                "workdir": T.String(),
-                "command": T.String(allow_blank=True),
-                "stack_file": T.String(),
-                "excluded_services": T.List(T.String()),
-                "excluded_volumes": T.List(T.String()),
-                "additional_parameters": T.Any(),
-                T.Key("services_prefix", default="", optional=True): T.String(
-                    allow_blank=True
-                ),
-            }
-        ),
-        "portainer": T.List(
-            T.Dict(
-                {
-                    "url": T.String(),
-                    T.Key("endpoint_id", optional=True, default=-1): T.Int(),
-                    T.Key("username", optional=True, default=""): T.String(
-                        allow_blank=True
-                    ),
-                    T.Key("password", optional=True, default=""): T.String(
-                        allow_blank=True
-                    ),
-                    "stack_name": T.String(),
-                }
-            ),
-            min_length=1,
         ),
         "polling_interval": T.Int(gte=0),
         T.Key("notifications", optional=True, default=[]): T.List(

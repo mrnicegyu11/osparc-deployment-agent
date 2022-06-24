@@ -49,7 +49,7 @@ async def _git_clone_repo(
             "--depth",
             "1",
             str(directory),
-            "--single-branch",
+            "--no-single-branch",
             "--branch",
             branch,
         ]
@@ -62,7 +62,7 @@ async def _git_clone_repo(
             "--depth",
             "1",
             str(directory),
-            "--single-branch",
+            "--no-single-branch",
             "--branch",
             branch,
         ]
@@ -85,6 +85,11 @@ async def _git_get_sha_of_tag(directory: Path, tag: str) -> str:
 
 async def _git_clean_repo(directory: Path):
     cmd = ["git", "clean", "-dxf"]
+    await run_cmd_line(cmd, str(directory))
+
+
+async def _git_checkout_branch(directory: Path, branchname: str):
+    cmd = ["git", "checkout", branchname]
     await run_cmd_line(cmd, str(directory))
 
 
@@ -206,7 +211,10 @@ class GitRepo:  # pylint: disable=too-many-instance-attributes, too-many-argumen
     repo_id: str
     repo_url: URL
     branch: str
-    tags: str
+    tags_regex: str
+    branch_regex: str
+    command: str
+    workdir: str
     username: str
     password: str
     paths: List[Path]
@@ -239,8 +247,8 @@ async def _init_repositories(repos: List[GitRepo]) -> Dict:
         )
         await _git_fetch(repo.directory)
         latest_tag = (
-            await _git_get_latest_matching_tag(repo.directory, repo.tags)
-            if repo.tags
+            await _git_get_latest_matching_tag(repo.directory, repo.tags_regex)
+            if repo.tags_regex
             else None
         )
         log.debug(
@@ -248,16 +256,16 @@ async def _init_repositories(repos: List[GitRepo]) -> Dict:
             repo.repo_id,
             latest_tag,
         )
-        if not latest_tag and repo.tags:
+        if not latest_tag and repo.tags_regex:
             raise ConfigurationError(
-                msg=f"no tags found in {repo.repo_url}:{repo.branch} that follows defined tags pattern {repo.tags}: {latest_tag}"
+                msg=f"no tags found in {repo.repo_url}:{repo.branch} that follows defined tags pattern {repo.tags_regex}: {latest_tag}"
             )
 
         await _checkout_repository(repo, latest_tag)
         log.info("repository %s checked out on %s", repo, latest_tag)
         # If no tag: fetch head
         # if tag: sha of tag
-        if repo.tags:
+        if repo.tags_regex:
             sha = await _git_get_sha_of_tag(repo.directory, latest_tag)
         else:
             sha = await _git_get_FETCH_HEAD_sha(repo.directory)
@@ -275,12 +283,14 @@ async def _update_repo_using_tags(
 ) -> Optional[str]:  # pylint: disable=unsubscriptable-object
     log.debug("checking %s using tags", repo.repo_id)
     # check if current tag is the latest and greatest
-    list_current_tags = await _git_get_current_matching_tag(repo.directory, repo.tags)
-    latest_tag = await _git_get_latest_matching_tag(repo.directory, repo.tags)
+    list_current_tags = await _git_get_current_matching_tag(
+        repo.directory, repo.tags_regex
+    )
+    latest_tag = await _git_get_latest_matching_tag(repo.directory, repo.tags_regex)
     # there should always be a tag
     if not latest_tag:
         raise ConfigurationError(
-            msg=f"no tags found in {repo.repo_id} that follows defined tags pattern {repo.tags}"
+            msg=f"no tags found in {repo.repo_id} that follows defined tags pattern {repo.tags_regex}"
         )
 
     log.debug(
@@ -318,7 +328,7 @@ async def _update_repo_using_branch_head(
         return
     # get the logs
     logged_changes = await _git_get_logs(repo.directory, repo.branch, repo.branch)
-    log.debug("Changelog:\n%s", logged_changes)
+    log.debug("Git Changes:\n%s", logged_changes)
     await _update_repository(repo)
     # check if a watched file has changed
     modified_files = modified_files.split()
@@ -331,7 +341,7 @@ async def _update_repo_using_branch_head(
         # no change affected the watched files
         return
 
-    log.info("File %s changed!!", common_files)
+    log.info("File %s in github repo changed!!", common_files)
     sha = await _git_get_FETCH_HEAD_sha(repo.directory)
     return f"{repo.repo_id}:{repo.branch}:{sha}"
 
@@ -346,7 +356,7 @@ async def _check_repositories(repos: List[GitRepo]) -> Dict:
 
         repo_changes = (
             await _update_repo_using_tags(repo)
-            if repo.tags
+            if repo.tags_regex
             else await _update_repo_using_branch_head(repo)
         )
         if repo_changes:
@@ -370,11 +380,14 @@ class GitUrlWatcher(SubTask):
                 repo_id=config["id"],
                 repo_url=config["url"],
                 branch=config["branch"],
-                tags=config["tags"],
+                tags_regex=config["tags_regex"],
+                branch_regex=config["branch_regex"],
                 pull_only_files=config["pull_only_files"],
                 username=config["username"],
                 password=config["password"],
                 paths=config["paths"],
+                workdir=config["workdir"],
+                command=config["command"],
             )
             self.watched_repos.append(repo)
 
@@ -390,6 +403,24 @@ class GitUrlWatcher(SubTask):
     )
     async def check_for_changes(self) -> Dict:
         return await _check_repositories(self.watched_repos)
+
+    async def checkout_branch(self, branchname: str):
+        await _git_fetch(self.directory)
+        await _git_clean_repo(self.directory)
+        await _git_checkout_branch(self.directory, branchname)
+        await _git_pull(self)
+        return
+
+    async def pull(self):
+        await _git_fetch(self.directory)
+        await _git_clean_repo(self.directory)
+        await _git_pull(self)
+
+    async def checkout_tag(self, tagname: str):
+        await _git_fetch(self.directory)
+        await _git_clean_repo(self.directory)
+        await _checkout_repository(self, tagname)
+        return
 
     async def cleanup(self):
         await _delete_repositories(self.watched_repos)
