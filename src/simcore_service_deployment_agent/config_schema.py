@@ -38,11 +38,11 @@ app_schema = T.Dict(
                     T.Key("workdir", default=".", optional=True): T.String(
                         allow_blank=False
                     ),
-                    "command": T.List(
-                        T.String(allow_blank=False), optional=False, min_length=1
+                    T.Key("command", optional=False): T.List(
+                        T.String(allow_blank=False), min_length=1
                     ),
-                    "pull_only_files": T.Bool(optional=True, default=False),
-                    "paths": T.List(T.String(), optional=True, default=[]),
+                    T.Key("pull_only_files", optional=True, default=False): T.Bool(),
+                    T.Key("paths", optional=True, default=[]): T.List(T.String()),
                 }
             ),
             min_length=1,
