@@ -26,21 +26,6 @@ from simcore_service_deployment_agent.git_url_watcher import GitUrlWatcher
 
 
 @pytest.fixture()
-def mocked_docker_registries_watcher(mocker) -> Dict[str, Any]:
-    mock_docker_watcher = {
-        "init": mocker.patch.object(
-            auto_deploy_task.DockerRegistriesWatcher, "init", return_value={}
-        ),
-        "check_for_changes": mocker.patch.object(
-            auto_deploy_task.DockerRegistriesWatcher,
-            "check_for_changes",
-            return_value={},
-        ),
-    }
-    return mock_docker_watcher
-
-
-@pytest.fixture()
 def mocked_git_url_watcher(mocker) -> Dict[str, Any]:
     mock_git_changes = {
         "init": mocker.patch.object(GitUrlWatcher, "init", return_value={}),
@@ -156,7 +141,6 @@ async def test_add_parameters(
 
 
 async def test_setup_task(
-    mocked_docker_registries_watcher,
     mocked_git_url_watcher,
     mocked_cmd_utils,
     mocked_stack_file,
