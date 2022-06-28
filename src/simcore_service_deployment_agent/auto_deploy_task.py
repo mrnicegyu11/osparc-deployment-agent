@@ -26,6 +26,7 @@ TASK_SESSION_NAME = __name__ + "session"
 
 RETRY_WAIT_SECS = 2  ##TODO: As Env Var
 RETRY_COUNT = 10  # TODO: As Env var
+AUTO_DEPLOY_FAILURE_RETRY_SLEEP = 300  # TODO: As Env var
 
 
 async def create_git_watch_subtask(app_config: Dict) -> Tuple[GitUrlWatcher, Dict]:
@@ -162,7 +163,7 @@ async def auto_deploy(app: web.Application):
                     state=app["state"][TASK_NAME],
                     message=str(exc),
                 )
-            await asyncio.sleep(300)  # TODO: Make this time configurable
+            await asyncio.sleep(AUTO_DEPLOY_FAILURE_RETRY_SLEEP)
         finally:
             # cleanup the subtasks
             log.info("task completed...")
