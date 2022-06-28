@@ -240,46 +240,43 @@ async def _update_repository(repo: GitRepo):
         await _git_pull(repo.directory)
 
 
-async def _init_repositories(repos: List[GitRepo]) -> Dict:
-    description = {}
-    for repo in repos:
-        directoryName = tempfile.mkdtemp()
-        repo.directory = copy.deepcopy(directoryName)
-        log.debug("cloning %s in %s...", repo.repo_id, repo.directory)
-        await _git_clone_repo(
-            repo.repo_url, repo.directory, repo.branch, repo.username, repo.password
+async def _init_repository(repo: GitRepo) -> Dict:
+    directoryName = tempfile.mkdtemp()
+    repo.directory = copy.deepcopy(directoryName)
+    log.debug("cloning %s in %s...", repo.repo_id, repo.directory)
+    await _git_clone_repo(
+        repo.repo_url, repo.directory, repo.branch, repo.username, repo.password
+    )
+    await _git_fetch(repo.directory)
+    latest_tag = (
+        await _git_get_latest_matching_tag(repo.directory, repo.tags_regex)
+        if repo.tags_regex
+        else None
+    )
+    log.debug(
+        "latest tag found for %s is %s, now checking out...",
+        repo.repo_id,
+        latest_tag,
+    )
+    if not latest_tag and repo.tags_regex:
+        raise ConfigurationError(
+            msg=f"no tags found in {repo.repo_url}:{repo.branch} that follows defined tags pattern {repo.tags_regex}: {latest_tag}"
         )
-        await _git_fetch(repo.directory)
-        latest_tag = (
-            await _git_get_latest_matching_tag(repo.directory, repo.tags_regex)
-            if repo.tags_regex
-            else None
-        )
-        log.debug(
-            "latest tag found for %s is %s, now checking out...",
-            repo.repo_id,
-            latest_tag,
-        )
-        if not latest_tag and repo.tags_regex:
-            raise ConfigurationError(
-                msg=f"no tags found in {repo.repo_url}:{repo.branch} that follows defined tags pattern {repo.tags_regex}: {latest_tag}"
-            )
 
-        await _checkout_repository(repo, latest_tag)
-        log.info("repository %s checked out on %s", repo, latest_tag)
-        # If no tag: fetch head
-        # if tag: sha of tag
-        if repo.tags_regex:
-            sha = await _git_get_sha_of_tag(repo.directory, latest_tag)
-        else:
-            sha = await _git_get_FETCH_HEAD_sha(repo.directory)
-        log.debug("sha for %s is %s", repo.repo_id, sha)
-        description[repo.repo_id] = (
-            f"{repo.repo_id}:{repo.branch}:{latest_tag}:{sha}"
-            if latest_tag
-            else f"{repo.repo_id}:{repo.branch}:{sha}"
-        )
-    return description
+    await _checkout_repository(repo, latest_tag)
+    log.info("repository %s checked out on %s", repo, latest_tag)
+    # If no tag: fetch head
+    # if tag: sha of tag
+    if repo.tags_regex:
+        sha = await _git_get_sha_of_tag(repo.directory, latest_tag)
+    else:
+        sha = await _git_get_FETCH_HEAD_sha(repo.directory)
+    log.debug("sha for %s is %s", repo.repo_id, sha)
+    return (
+        f"{repo.repo_id}:{repo.branch}:{latest_tag}:{sha}"
+        if latest_tag
+        else f"{repo.repo_id}:{repo.branch}:{sha}"
+    )
 
 
 async def _update_repo_using_tags(
@@ -350,53 +347,47 @@ async def _update_repo_using_branch_head(
     return f"{repo.repo_id}:{repo.branch}:{sha}"
 
 
-async def _check_repositories(repos: List[GitRepo]) -> Dict:
-    changes = {}
-    for repo in repos:
-        log.debug("checking repo: %s...", repo.repo_url)
-        assert repo.directory
-        await _git_fetch(repo.directory)
-        await _git_clean_repo(repo.directory)
+async def _check_repository(repo: GitRepo) -> Dict:
+    log.debug("checking repo: %s...", repo.repo_id)
+    assert repo.directory
+    await _git_fetch(repo.directory)
+    await _git_clean_repo(repo.directory)
 
-        repo_changes = (
-            await _update_repo_using_tags(repo)
-            if repo.tags_regex
-            else await _update_repo_using_branch_head(repo)
-        )
-        if repo_changes:
-            changes[repo.repo_id] = repo_changes
-
-    return changes
+    repo_changes = (
+        await _update_repo_using_tags(repo)
+        if repo.tags_regex
+        else await _update_repo_using_branch_head(repo)
+    )
+    if repo_changes:
+        return repo_changes
+    return {}
 
 
-async def _delete_repositories(repos: List[GitRepo]):
-    for repo in repos:
-        shutil.rmtree(repo.directory, ignore_errors=True)
+async def _delete_repository(repo: GitRepo):
+    shutil.rmtree(repo.directory, ignore_errors=True)
 
 
 class GitUrlWatcher(SubTask):
-    def __init__(self, app_config: Dict):
+    def __init__(self, watched_git_repo_config: Dict):
         super().__init__(name="git repo watcher")
-        self.watched_repos = []
-        watched_compose_files_config = app_config["main"]["watched_git_repositories"]
-        for config in watched_compose_files_config:
-            repo = GitRepo(
-                repo_id=config["id"],
-                repo_url=config["url"],
-                branch=config["branch"],
-                tags_regex=config["tags_regex"] if "tags_regex" in config else "",
-                branch_regex=config["branch_regex"] if "branch_regex" in config else "",
-                pull_only_files=config["pull_only_files"],
-                username=config["username"],
-                password=config["password"],
-                paths=config["paths"],
-                workdir=config["workdir"] if "workdir" in config else ".",
-                command=config["command"],
-            )
-            self.watched_repos.append(repo)
+        config = watched_git_repo_config
+        repo = GitRepo(
+            repo_id=config["id"],
+            repo_url=config["url"],
+            branch=config["branch"],
+            tags_regex=config["tags_regex"] if "tags_regex" in config else "",
+            branch_regex=config["branch_regex"] if "branch_regex" in config else "",
+            pull_only_files=config["pull_only_files"],
+            username=config["username"],
+            password=config["password"],
+            paths=config["paths"],
+            workdir=config["workdir"] if "workdir" in config else ".",
+            command=config["command"],
+        )
+        self.watched_repo = repo
 
     async def init(self) -> Dict:
-        description = await _init_repositories(self.watched_repos)
+        description = await _init_repository(self.watched_repo)
         return description
 
     @retry(
@@ -406,28 +397,73 @@ class GitUrlWatcher(SubTask):
         after=after_log(log, logging.DEBUG),
     )
     async def check_for_changes(self) -> Dict:
-        return await _check_repositories(self.watched_repos)
+        return await _check_repository(self.watched_repo)
 
     async def checkout_branch(self, branchname: str):
-        await _git_fetch(self.directory)
-        await _git_clean_repo(self.directory)
-        await _git_checkout_branch(self.directory, branchname)
+        await _git_fetch(self.watched_repo.directory)
+        await _git_clean_repo(self.watched_repo.directory)
+        await _git_checkout_branch(self.watched_repo.directory, branchname)
         await _git_pull(self)
         return
 
     async def pull(self):
-        await _git_fetch(self.directory)
-        await _git_clean_repo(self.directory)
+        await _git_fetch(self.watched_repo.directory)
+        await _git_clean_repo(self.watched_repo.directory)
         await _git_pull(self)
 
     async def checkout_tag(self, tagname: str):
-        await _git_fetch(self.directory)
-        await _git_clean_repo(self.directory)
+        await _git_fetch(self.watched_repo.directory)
+        await _git_clean_repo(self.watched_repo.directory)
         await _checkout_repository(self, tagname)
         return
 
     async def cleanup(self):
-        await _delete_repositories(self.watched_repos)
+        await _delete_repository(self.watched_repo)
 
 
-__all__ = ["GitUrlWatcher"]
+class GitUrlWatcherGroup:
+    def __init__(self, listOfGitUrlWatchers: List[GitUrlWatcher]):
+        self.watched_repos = []
+        for i in listOfGitUrlWatchers:
+            self.watched_repos.append(i)
+
+    async def init(self) -> Dict:
+        description = [{} for i in range(len(self.watched_repos))]
+        for i0, obj in enumerate(self.watched_repos):
+            description[i0] = await obj.init()  # TODO: Handle return value
+        return description
+
+    async def check_for_changes(self) -> Dict:
+        changes = [{} for i in range(len(self.watched_repos))]
+        for i0, obj in enumerate(self.watched_repos):
+            changes[i0] = await _check_repository(obj.watched_repo)
+        if changes != [{} for i in range(len(self.watched_repos))]:
+            return changes
+
+    async def checkout_branch(self, branchname: str):
+        for i in self.watched_repos:
+            await _git_fetch(i.watched_repo.directory)
+            await _git_clean_repo(i.watched_repo.directory)
+            await _git_checkout_branch(i.watched_repo.directory, branchname)
+            await _git_pull(i.watched_repo.directory)
+        return
+
+    async def pull(self):
+        for i in self.watched_repos:
+            await _git_fetch(i.watched_repo.directory)
+            await _git_clean_repo(i.watched_repo.directory)
+            await _git_pull(i.watched_repo.directory)
+
+    async def checkout_tag(self, tagname: str):
+        for i in self.watched_repos:
+            await _git_fetch(i.watched_repo.directory)
+            await _git_clean_repo(i.watched_repo.directory)
+            await _checkout_repository(i.watched_repo.directory, tagname)
+        return
+
+    async def cleanup(self):
+        for i in self.watched_repos:
+            await _delete_repository(i.watched_repo)
+
+
+__all__ = ["GitUrlWatcher", "GitUrlWatcherGroup"]

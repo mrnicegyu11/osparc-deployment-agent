@@ -11,7 +11,7 @@ from simcore_service_deployment_agent.exceptions import CmdLineError
 
 from .app_state import State
 from .cmd_utils import run_cmd_line_unsafe
-from .git_url_watcher import GitUrlWatcher
+from .git_url_watcher import GitUrlWatcher, GitUrlWatcherGroup
 from .notifier import notify, notify_state
 
 log = logging.getLogger(__name__)
@@ -26,12 +26,15 @@ AUTO_DEPLOY_FAILURE_RETRY_SLEEP = 300  # TODO: As Env var
 
 async def create_git_watch_subtask(app_config: Dict) -> Tuple[GitUrlWatcher, Dict]:
     log.debug("creating git repo watch subtask")
-    git_sub_task = GitUrlWatcher(app_config)
+    listOfGitUrlWatchers = [
+        GitUrlWatcher(i) for i in app_config["main"]["watched_git_repostories"]
+    ]
+    git_sub_task = GitUrlWatcherGroup(listOfGitUrlWatchers)
     descriptions = await git_sub_task.init()
     return (git_sub_task, descriptions)
 
 
-async def deploy_update_stacks(app_config: Dict, git_task: GitUrlWatcher):
+async def deploy_update_stacks(app_config: Dict, git_task: GitUrlWatcherGroup):
     if app_config["deployed_version"] != "":
         # Assert that all watches repos have the matching version present in branch or tag
         for repo in git_task.watched_repos:
@@ -59,9 +62,9 @@ async def deploy_update_stacks(app_config: Dict, git_task: GitUrlWatcher):
                 )
             for cmd_ in repo.command:
                 try:
-                    run_cmd_line_unsafe(cmd=cmd_, cwd=repo.workdir)
+                    run_cmd_line_unsafe(cmd=cmd_, cwd_=repo.workdir)
                 except CmdLineError:
-                    log.error("Failed to run command: >> " + cmd_ + "<<")
+                    log.error("Failed to run command: %s ", cmd_)
                     log.error("Aborting deployment!")
                     break
             # Check out the tag everywhere: How would this work with the git_url_watcher?
@@ -73,9 +76,9 @@ async def deploy_update_stacks(app_config: Dict, git_task: GitUrlWatcher):
                 # Update
                 for cmd_ in repo.command:
                     try:
-                        run_cmd_line_unsafe(cmd=cmd_, cwd=repo.workdir)
+                        run_cmd_line_unsafe(cmd=cmd_, cwd_=repo.workdir)
                     except CmdLineError:
-                        log.error("Failed to run command: >> " + cmd_ + "<<")
+                        log.error("Failed to run command: %s ", cmd_)
                         log.error("Aborting deployment!")
                         break
     return
@@ -83,7 +86,7 @@ async def deploy_update_stacks(app_config: Dict, git_task: GitUrlWatcher):
 
 async def _deploy(
     app: web.Application,
-) -> GitUrlWatcher:
+) -> GitUrlWatcherGroup:
     try:
         log.info("starting stack deployment...")
         # get configs

@@ -13,7 +13,6 @@ from typing import Any, Dict
 import pytest
 
 from simcore_service_deployment_agent import git_url_watcher
-from simcore_service_deployment_agent.cmd_utils import CmdLineError
 from simcore_service_deployment_agent.exceptions import ConfigurationError
 
 
@@ -74,11 +73,14 @@ async def test_git_url_watcher_find_new_file(
     REPO_ID = git_config["main"]["watched_git_repositories"][0]["id"]
     BRANCH = git_config["main"]["watched_git_repositories"][0]["branch"]
 
-    git_watcher = git_url_watcher.GitUrlWatcher(git_config)
+    singleGitUrlWatcher = git_url_watcher.GitUrlWatcher(
+        git_config["main"]["watched_git_repositories"][0]
+    )
+    git_watcher = git_url_watcher.GitUrlWatcherGroup([singleGitUrlWatcher])
     init_result = await git_watcher.init()
 
     git_sha = _run_cmd("git rev-parse --short HEAD", cwd=git_repo_path)
-    assert init_result == {REPO_ID: f"{REPO_ID}:{BRANCH}:{git_sha}"}
+    assert init_result[0] == f"{REPO_ID}:{BRANCH}:{git_sha}"
 
     # there was no changes
     assert not await git_watcher.check_for_changes()
@@ -92,7 +94,7 @@ async def test_git_url_watcher_find_new_file(
     change_results = await git_watcher.check_for_changes()
     # get new sha
     git_sha = _run_cmd("git rev-parse --short HEAD", cwd=git_repo_path)
-    assert change_results == {REPO_ID: f"{REPO_ID}:{BRANCH}:{git_sha}"}
+    assert change_results[0] == f"{REPO_ID}:{BRANCH}:{git_sha}"
 
     await git_watcher.cleanup()
 
@@ -110,7 +112,9 @@ async def test_git_url_watcher_pull_only_selected_files(
     REPO_ID = git_config_pull_only_files["main"]["watched_git_repositories"][0]["id"]
     BRANCH = git_config_pull_only_files["main"]["watched_git_repositories"][0]["branch"]
 
-    git_watcher = git_url_watcher.GitUrlWatcher(git_config_pull_only_files)
+    git_watcher = git_url_watcher.GitUrlWatcher(
+        git_config_pull_only_files["main"]["watched_git_repositories"][0]
+    )
     # the file does not exist yet
     with pytest.raises(ConfigurationError):
         init_result = await git_watcher.init()
@@ -123,7 +127,7 @@ async def test_git_url_watcher_pull_only_selected_files(
     # expect to work now
     init_result = await git_watcher.init()
     git_sha = _run_cmd("git rev-parse --short HEAD", cwd=git_repo_path)
-    assert init_result == {REPO_ID: f"{REPO_ID}:{BRANCH}:{git_sha}"}
+    assert init_result == f"{REPO_ID}:{BRANCH}:{git_sha}"
 
     # there was no changes
     assert not await git_watcher.check_for_changes()
@@ -146,7 +150,7 @@ async def test_git_url_watcher_pull_only_selected_files(
     change_results = await git_watcher.check_for_changes()
     # get new sha
     git_sha = _run_cmd("git rev-parse --short HEAD", cwd=git_repo_path)
-    assert change_results == {REPO_ID: f"{REPO_ID}:{BRANCH}:{git_sha}"}
+    assert change_results == f"{REPO_ID}:{BRANCH}:{git_sha}"
 
     await git_watcher.cleanup()
 
@@ -169,7 +173,9 @@ async def test_git_url_watcher_pull_only_selected_files_tags(
         "branch"
     ]
 
-    git_watcher = git_url_watcher.GitUrlWatcher(git_config_pull_only_files_tags)
+    git_watcher = git_url_watcher.GitUrlWatcher(
+        git_config_pull_only_files_tags["main"]["watched_git_repositories"][0]
+    )
 
     # the file does not exist yet
     with pytest.raises(ConfigurationError):
@@ -184,7 +190,7 @@ async def test_git_url_watcher_pull_only_selected_files_tags(
     # expect to work now
     init_result = await git_watcher.init()
     git_sha = _run_cmd("git rev-parse --short HEAD", cwd=git_repo_path)
-    assert init_result == {REPO_ID: f"{REPO_ID}:{BRANCH}:{VALID_TAG}:{git_sha}"}
+    assert init_result == f"{REPO_ID}:{BRANCH}:{VALID_TAG}:{git_sha}"
 
     # there was no changes
     assert not await git_watcher.check_for_changes()
@@ -227,7 +233,7 @@ async def test_git_url_watcher_pull_only_selected_files_tags(
     change_results = await git_watcher.check_for_changes()
     # get new sha
     git_sha = _run_cmd("git rev-parse --short HEAD", cwd=git_repo_path)
-    assert change_results == {REPO_ID: f"{REPO_ID}:{BRANCH}:{NEW_VALID_TAG}:{git_sha}"}
+    assert change_results == f"{REPO_ID}:{BRANCH}:{NEW_VALID_TAG}:{git_sha}"
 
     NEW_VALID_TAG_ON_SAME_SHA = "staging_a3rdvalid"
     _run_cmd(
@@ -239,10 +245,9 @@ async def test_git_url_watcher_pull_only_selected_files_tags(
     change_results = await git_watcher.check_for_changes()
     # get new sha
     git_sha = _run_cmd("git rev-parse --short HEAD", cwd=git_repo_path)
-    assert change_results[REPO_ID].split(":")[-1] == git_sha
+    assert change_results.split(":")[-1] == git_sha
 
     # Check that tags are sorted in correct order, by tag time, not alphabetically
-    assert len(git_watcher.watched_repos) == 1
     NEW_VALID_TAG_ON_SAME_SHA = "staging_z4thvalid"
     _run_cmd(
         f"git tag {NEW_VALID_TAG_ON_SAME_SHA};",
@@ -257,7 +262,7 @@ async def test_git_url_watcher_pull_only_selected_files_tags(
     # we should have a change here
     change_results = await git_watcher.check_for_changes()
     latestTag = await git_url_watcher._git_get_latest_matching_tag(
-        git_watcher.watched_repos[0].directory, git_watcher.watched_repos[0].tags_regex
+        git_watcher.watched_repo.directory, git_watcher.watched_repo.tags_regex
     )
     assert latestTag == NEW_VALID_TAG_ON_NEW_SHA
     #
