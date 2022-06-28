@@ -67,7 +67,7 @@ def services_docker_compose(deployment_agent_root_dir) -> Dict[str, str]:
 
 def _list_services():
     content = _services_docker_compose(_deployment_agent_root_dir(_here()))
-    return [name for name in content["services"].keys() if name not in exclude]
+    return content["services"].keys()
 
 
 @pytest.fixture(scope="session", params=_list_services())

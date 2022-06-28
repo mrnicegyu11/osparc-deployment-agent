@@ -23,6 +23,8 @@ main:
         - services/docker-compose.yml
         - Makefile
         - .env-devel
+      command:
+      - "echo TEST"
   docker_private_registries:
     # lists registries and their credentials if necessary to check for services to download from
     - url: https://index.docker.io/v1
