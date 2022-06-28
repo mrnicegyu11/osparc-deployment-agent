@@ -19,12 +19,10 @@ from aioresponses import aioresponses
 # Monkeypatch the tenacity wait time https://stackoverflow.com/questions/47906671/python-retry-with-tenacity-disable-wait-for-unittest
 from tenacity.wait import wait_none
 
-from simcore_service_deployment_agent import auto_deploy_task, portainer
+from simcore_service_deployment_agent import auto_deploy_task
 from simcore_service_deployment_agent.app_state import State
 from simcore_service_deployment_agent.application import create
 from simcore_service_deployment_agent.git_url_watcher import GitUrlWatcher
-
-portainer._portainer_request.retry.wait = wait_none()
 
 
 @pytest.fixture()
@@ -95,7 +93,7 @@ def client(
     yield client
 
 
-def test_client(portainer_service_mock: aioresponses, client: TestClient):
+def test_client(client: TestClient):
     # check that the client starts/stops correctly
     pass
 
@@ -162,7 +160,6 @@ async def test_setup_task(
     mocked_git_url_watcher,
     mocked_cmd_utils,
     mocked_stack_file,
-    portainer_service_mock: aioresponses,
     mattermost_service_mock: aioresponses,
     client: TestClient,
 ):

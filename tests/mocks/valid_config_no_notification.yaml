@@ -45,11 +45,4 @@ main:
         ANOTHER_TEST_ENV: "some other test"
         YET_ANOTHER_ENV: "this one is replaced"
     services_prefix: test_prefix
-  portainer:
-    # lists the portainer instances to call upon
-    - url: http://portainer:9000
-      endpoint_id: 1
-      username: admin
-      password: adminadmin
-      stack_name: services
   polling_interval: 30
