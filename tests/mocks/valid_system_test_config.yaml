@@ -13,11 +13,14 @@ main:
     - id: simcore-github-repo
       url: https://github.com/ITISFoundation/osparc-simcore.git
       branch: master
+      branch-regex: master
       pull_only_files: false # if true will only pull the files define in paths
       paths:
         # lists the files where to look for changes in the repo
         - services/docker-compose.yml
         - .env-devel
+      command:
+      - "echo TEST"
     - id: simcore-ops-repo
       url: https://github.com/ITISFoundation/osparc-simcore.git ### MOCK!
       branch: osparc-local
@@ -25,6 +28,8 @@ main:
       paths:
         - services/docker-compose.yml
         - .env-devel
+      command:
+      - "echo TEST"
   docker_private_registries:
     # lists registries and their credentials if necessary to check for services to download from
     - url: https://index.docker.io/v1

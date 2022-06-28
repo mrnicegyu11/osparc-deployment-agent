@@ -18,7 +18,7 @@ from tenacity import (
 from yarl import URL
 
 from .cmd_utils import run_cmd_line
-from .exceptions import ConfigurationError
+from .exceptions import CmdLineError, ConfigurationError
 from .subtask import SubTask
 
 log = logging.getLogger(__name__)
@@ -97,7 +97,11 @@ async def _git_checkout_files(directory: Path, paths: List[Path], tag: str = Non
     if not tag:
         tag = "HEAD"
     cmd = ["git", "checkout", tag] + [str(path) for path in paths]
-    await run_cmd_line(cmd, str(directory))
+    try:
+        await run_cmd_line(cmd, str(directory))
+    except CmdLineError as e:
+        if "did not match" in str(e):
+            raise ConfigurationError("File does not exist") from e
 
 
 async def _git_checkout_repo(directory: Path, tag: str = None):
@@ -380,13 +384,13 @@ class GitUrlWatcher(SubTask):
                 repo_id=config["id"],
                 repo_url=config["url"],
                 branch=config["branch"],
-                tags_regex=config["tags_regex"],
-                branch_regex=config["branch_regex"],
+                tags_regex=config["tags_regex"] if "tags_regex" in config else "",
+                branch_regex=config["branch_regex"] if "branch_regex" in config else "",
                 pull_only_files=config["pull_only_files"],
                 username=config["username"],
                 password=config["password"],
                 paths=config["paths"],
-                workdir=config["workdir"],
+                workdir=config["workdir"] if "workdir" in config else ".",
                 command=config["command"],
             )
             self.watched_repos.append(repo)

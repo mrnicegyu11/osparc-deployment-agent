@@ -13,6 +13,7 @@ main:
     - id: simcore-github-repo
       url: https://github.com/ITISFoundation/osparc-simcore.git
       branch: master
+      branch-regex: master
       username: "blahblag"
       password: "somestuffverysecret"
       tags: ""

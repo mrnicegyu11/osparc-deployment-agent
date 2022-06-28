@@ -1,5 +1,3 @@
-from email.policy import default
-
 import trafaret as T
 
 from .rest_config import schema as rest_schema
@@ -35,14 +33,12 @@ app_schema = T.Dict(
                     T.Key("branch_regex", default="", optional=True): T.String(
                         allow_blank=True
                     ),
-                    T.Key("workdir", default=".", optional=True): T.String(
-                        allow_blank=False
-                    ),
+                    T.Key("workdir", default="."): T.String(allow_blank=False),
                     T.Key("command", optional=False): T.List(
                         T.String(allow_blank=False), min_length=1
                     ),
-                    T.Key("pull_only_files", optional=True, default=False): T.Bool(),
-                    T.Key("paths", optional=True, default=[]): T.List(T.String()),
+                    T.Key("pull_only_files", default=False): T.Bool(),
+                    T.Key("paths", default=[]): T.List(T.String()),
                 }
             ),
             min_length=1,

@@ -1,15 +1,11 @@
 import asyncio
-import json
 import logging
 from asyncio.exceptions import CancelledError
-from pathlib import Path
-from shutil import copy2
-from typing import Dict, List, Tuple
+from typing import Dict, Tuple
 
 from aiohttp import ClientSession, web
 from aiohttp.client import ClientTimeout
 from servicelib.application_keys import APP_CONFIG_KEY
-from yarl import URL
 
 from simcore_service_deployment_agent.exceptions import CmdLineError
 
@@ -17,7 +13,6 @@ from .app_state import State
 from .cmd_utils import run_cmd_line_unsafe
 from .git_url_watcher import GitUrlWatcher
 from .notifier import notify, notify_state
-from .subtask import SubTask
 
 log = logging.getLogger(__name__)
 TASK_NAME = __name__ + "_autodeploy_task"
@@ -36,9 +31,7 @@ async def create_git_watch_subtask(app_config: Dict) -> Tuple[GitUrlWatcher, Dic
     return (git_sub_task, descriptions)
 
 
-async def deploy_update_stacks(
-    app_config: Dict, app_session: ClientSession, git_task: GitUrlWatcher
-):
+async def deploy_update_stacks(app_config: Dict, git_task: GitUrlWatcher):
     if app_config["deployed_version"] != "":
         # Assert that all watches repos have the matching version present in branch or tag
         for repo in git_task.watched_repos:
@@ -67,8 +60,8 @@ async def deploy_update_stacks(
             for cmd_ in repo.command:
                 try:
                     run_cmd_line_unsafe(cmd=cmd_, cwd=repo.workdir)
-                except CmdLineError as e:
-                    log.error("Failed to run command: >> ", cmd_, "<<")
+                except CmdLineError:
+                    log.error("Failed to run command: >> " + cmd_ + "<<")
                     log.error("Aborting deployment!")
                     break
             # Check out the tag everywhere: How would this work with the git_url_watcher?
@@ -81,8 +74,8 @@ async def deploy_update_stacks(
                 for cmd_ in repo.command:
                     try:
                         run_cmd_line_unsafe(cmd=cmd_, cwd=repo.workdir)
-                    except CmdLineError as e:
-                        log.error("Failed to run command: >> ", cmd_, "<<")
+                    except CmdLineError:
+                        log.error("Failed to run command: >> " + cmd_ + "<<")
                         log.error("Aborting deployment!")
                         break
     return
@@ -101,7 +94,7 @@ async def _deploy(
         git_task, descriptions = await create_git_watch_subtask(app_config)
         # deploy stack to swarm
         # TODO: Time this call, exceed polling interval to 5min
-        await deploy_update_stacks(app_config, app_session, git_task)  # TODO: Code
+        await deploy_update_stacks(app_config, git_task)  # TODO: Code
         # notifications
         await notify(
             app_config,
@@ -127,13 +120,13 @@ async def auto_deploy(app: web.Application):
     app_config = app[APP_CONFIG_KEY]
     app_session = app[TASK_SESSION_NAME]
     # Check config
-    for repo in app_config["watched_git_repositories"]:
-        assert not (repo["branch-regex"] == "" and repo["tags-regex"] == "")
-        assert not (repo["branch-regex"] != "" and repo["tags-regex"] != "")
-        assert not (repo["branch-regex"] != "" and repo["branch"] != "")
+    for repo in app_config["main"]["watched_git_repositories"]:
+        assert not ("branch-regex" not in repo and "tags-regex" not in repo)
+        assert not ("branch-regex" in repo and "tags-regex" in repo)
+        assert not ("branch-regex" in repo and "branch" not in repo)
     # init
     try:
-        git_task = await _deploy(app)
+        await _deploy(app)
     except CancelledError:
         app["state"][TASK_NAME] = State.STOPPED
         return
@@ -146,7 +139,7 @@ async def auto_deploy(app: web.Application):
     while True:
         try:
             app["state"][TASK_NAME] = State.RUNNING
-            git_task = await _deploy(app)
+            await _deploy(app)
             await asyncio.sleep(app_config["main"]["polling_interval"])
         except asyncio.CancelledError:
             log.info("cancelling task...")

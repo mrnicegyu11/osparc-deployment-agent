@@ -61,23 +61,10 @@ def valid_config_file(mocks_dir: Path, request: FixtureRequest) -> Path:
     return path
 
 
-@pytest.fixture(scope="session")
-def valid_docker_stack_file(mocks_dir: Path) -> Path:
-    path = mocks_dir / "valid_docker_stack.yaml"
-    assert path.exists()
-    return path
-
-
 ## CONFIGs
 
 
 @pytest.fixture(scope="session")
 def valid_config(valid_config_file: Path) -> Dict[str, Any]:
     with valid_config_file.open() as fp:
-        return yaml.safe_load(fp)
-
-
-@pytest.fixture(scope="session")
-def valid_docker_stack(valid_docker_stack_file: Path) -> Dict[str, Any]:
-    with valid_docker_stack_file.open() as fp:
         return yaml.safe_load(fp)

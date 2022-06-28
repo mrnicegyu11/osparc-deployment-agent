@@ -55,11 +55,12 @@ def git_config(git_repository: str) -> Dict[str, Any]:
                     "id": "test-repo-1",
                     "url": str(git_repository),
                     "branch": "master",
-                    "tags": "",
                     "pull_only_files": False,
                     "paths": [],
                     "username": "fakeuser",
                     "password": "fakepassword",
+                    "workdir": ".",
+                    "command": ["echo TEST"],
                 }
             ]
         }
@@ -111,7 +112,7 @@ async def test_git_url_watcher_pull_only_selected_files(
 
     git_watcher = git_url_watcher.GitUrlWatcher(git_config_pull_only_files)
     # the file does not exist yet
-    with pytest.raises(CmdLineError):
+    with pytest.raises(ConfigurationError):
         init_result = await git_watcher.init()
 
     # add the file
@@ -154,7 +155,7 @@ async def test_git_url_watcher_pull_only_selected_files(
 def git_config_pull_only_files_tags(git_config: Dict[str, Any]) -> Dict[str, Any]:
     git_config["main"]["watched_git_repositories"][0]["pull_only_files"] = True
     git_config["main"]["watched_git_repositories"][0]["paths"] = ["theonefile.csv"]
-    git_config["main"]["watched_git_repositories"][0]["tags"] = "^staging_.+$"
+    git_config["main"]["watched_git_repositories"][0]["tags_regex"] = "^staging_.+$"
     return git_config
 
 
@@ -256,7 +257,7 @@ async def test_git_url_watcher_pull_only_selected_files_tags(
     # we should have a change here
     change_results = await git_watcher.check_for_changes()
     latestTag = await git_url_watcher._git_get_latest_matching_tag(
-        git_watcher.watched_repos[0].directory, git_watcher.watched_repos[0].tags
+        git_watcher.watched_repos[0].directory, git_watcher.watched_repos[0].tags_regex
     )
     assert latestTag == NEW_VALID_TAG_ON_NEW_SHA
     #
