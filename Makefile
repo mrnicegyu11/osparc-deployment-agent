@@ -47,7 +47,7 @@ get_my_ip := $(shell hostname --all-ip-addresses | cut --delimiter=" " --fields=
 	# Creating config for stack with 'local/{service}:dev' to $@
 	@export DOCKER_REGISTRY=local \
 	export DOCKER_IMAGE_TAG=dev; \
-	export DEPLOYMENT_AGENT_CONFIG=docker-compose.devel.yaml; \
+	export DEPLOYMENT_AGENT_CONFIG=deployment_config.devel.yaml; \
 	docker-compose --env-file=.env-devel --file docker-compose.yml --file docker-compose.devel.yaml --log-level=ERROR config > $@
 
 .stack.${STACK_NAME}-version.yml:  $(docker-compose-configs)
