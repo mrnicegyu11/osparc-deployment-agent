@@ -60,13 +60,12 @@ async def deploy_update_stacks(app_config: Dict, git_task: GitUrlWatcherGroup):
                 raise RuntimeError(
                     "Config wrong, cannot use branch_regex and tags_regex."
                 )
-            for cmd_ in repo.command:
-                try:
-                    run_cmd_line_unsafe(cmd=cmd_, cwd_=repo.workdir)
-                except CmdLineError:
-                    log.error("Failed to run command: %s ", cmd_)
-                    log.error("Aborting deployment!")
-                    break
+            try:
+                run_cmd_line_unsafe(cmd=" && ".join(repo.command), cwd_=repo.workdir)
+            except CmdLineError:
+                log.error("Failed to run command: %s ", " && ".join(repo.command))
+                log.error("Aborting deployment!")
+                break
             # Check out the tag everywhere: How would this work with the git_url_watcher?
             # Run command everywhere
     else:
@@ -74,13 +73,14 @@ async def deploy_update_stacks(app_config: Dict, git_task: GitUrlWatcherGroup):
             changes = await repo.check_for_changes()
             if changes != {}:
                 # Update
-                for cmd_ in repo.command:
-                    try:
-                        run_cmd_line_unsafe(cmd=cmd_, cwd_=repo.workdir)
-                    except CmdLineError:
-                        log.error("Failed to run command: %s ", cmd_)
-                        log.error("Aborting deployment!")
-                        break
+                try:
+                    run_cmd_line_unsafe(
+                        cmd=" && ".join(repo.command), cwd_=repo.workdir
+                    )
+                except CmdLineError:
+                    log.error("Failed to run command: %s ", " && ".join(repo.command))
+                    log.error("Aborting deployment!")
+                    break
     return
 
 
