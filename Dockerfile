@@ -45,13 +45,16 @@ EXPOSE 3000
 
 
 # necessary tools for running deployment-agent
+# https://stackoverflow.com/questions/11618898/pg-config-executable-not-found PG CONFIG
 RUN apt-get update &&\
   apt-get install -y --no-install-recommends \
   docker \
   make \
   bash \
   gettext \
+  libpq-dev \
   git \
+  openssh-client \
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/*
 
@@ -93,6 +96,10 @@ COPY --chown=scu:scu requirements/_base.txt .
 RUN pip --no-cache-dir install -r _base.txt
 
 
+# COPY SSH CONFIG
+COPY --chown=scu:scu docker/ssh-config /home/${SC_USER_NAME}/.ssh/config
+RUN chmod 600 /home/${SC_USER_NAME}/.ssh/config
+
 # --------------------------Cache stage -------------------
 # CI in master buils & pushes this target to speed-up image build
 #
@@ -126,6 +133,7 @@ ENV PYTHONOPTIMIZE=TRUE
 
 WORKDIR /home/scu
 
+
 # bring installed package without build tools
 COPY --from=cache --chown=scu:scu ${VIRTUAL_ENV} ${VIRTUAL_ENV}
 # copy docker entrypoint and boot scripts
@@ -158,6 +166,8 @@ ENV SC_BUILD_TARGET=development \
 WORKDIR /devel
 
 RUN chown -R scu:scu "${VIRTUAL_ENV}"
+
+RUN pip --no-cache-dir install --no-cache-dir debugpy
 
 ENTRYPOINT [ "/bin/sh", "services/deployment-agent/docker/entrypoint.sh" ]
 CMD ["/bin/sh", "services/deployment-agent/docker/boot.sh"]

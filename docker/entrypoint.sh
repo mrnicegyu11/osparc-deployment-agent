@@ -67,7 +67,7 @@ fi
 
 if [ "${SC_BOOT_MODE}" = "debug-ptvsd" ]
 then
-  # NOTE: production does NOT pre-installs debugpy
+  # NOTE: production does NOT pre-install debugpy
   pip install --no-cache-dir debugpy
 fi
 

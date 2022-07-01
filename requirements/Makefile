@@ -21,7 +21,7 @@ touch:
 	@$(foreach p,${objects},touch ${p};)
 
 
-check: ## Checks whether pip-compile is installed
+check: ## Checks whether pip-compile is installed (install via `pip install pip-tools`)
 	@which pip-compile > /dev/null
 
 
