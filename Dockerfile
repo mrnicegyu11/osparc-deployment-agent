@@ -1,13 +1,10 @@
-ARG PYTHON_VERSION="3.9.13"
+ARG PYTHON_VERSION="3.10.4"
 FROM python:${PYTHON_VERSION}-slim-buster as base
 
 #
 #  USAGE:
-#     cd sercices/deployment-agent
 #     docker build -f Dockerfile -t deployment-agent:prod --target production ../../
 #     docker run deployment-agent:prod
-#
-#  REQUIRED: context expected at ``osparc-simcore/`` folder because we need access to osparc-simcore/packages
 
 LABEL maintainer=sanderegg
 
