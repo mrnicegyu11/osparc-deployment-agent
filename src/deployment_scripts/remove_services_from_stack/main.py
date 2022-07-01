@@ -13,6 +13,7 @@ env.read_env("./.env", recurse=False)
 #
 listOfServicesToDrop = [i for i in env.str("EXCLUDED_SERVICES").split(",")]
 #
+# TODO: Use pathlib
 with open(env.str("FILENAME_IN"), "r+") as stackfile:
     stackfileDict = yaml.full_load(stackfile)
     assert "services" in stackfileDict

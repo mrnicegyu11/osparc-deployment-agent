@@ -8,8 +8,7 @@ main:
   log_level: DEBUG
   host: 127.0.0.1
   port: 8888
-  stack_name: master-simcore
-  deployed_version: "1.32.0"
+  deployed_version: "1.32.0" #### --> Maybe better as environment variables, from repo.config? Not in depl-agent
   watched_git_repositories:
     - id: simcore-ops-config
       url: ${GIT_OPS_CONFIG_REPO_URL}
@@ -36,7 +35,9 @@ main:
         - docker-compose --env-file .env -f services/docker-compose.yml -f docker-compose.deploy.yml config > stack.yml
         # TODO: Correct dockerhub images
         # TODO: Add prefix
-        # TODO: Remove srevices
+        # TODO: Remove services
+        # Check if images are there --> Notifaction
+        # Check if there are changes in the stack, only call docker engine if there are changes
         - docker stack deploy --with-registry-auth --prune --compose-file stack.yml ${STACK_NAME}
       ###
       # Command is a list that only continues if exit code of previous is 0
@@ -56,6 +57,18 @@ main:
         - adminer/ # Can handle folders
       workdir: adminer
       command: "make up-${TARGET_ARCHITECTURE}" ### If returncode is 2, make down and slepp and make up
+    - id: simcore-deployment-agent-config
+      url: ${GIT_OPS_STACK_REPO_URL}
+      branch: ${GIT_OPS_STACK_REPO_BRANCH}
+      pull_only_files: true
+      username: ${GIT_OPS_LOGIN}
+      password: ${GIT_OPS_PASSWORD}
+      branch_regex: "^v[0-9]+.[0-9]+.[0-9]+$" # TODO: Can handle branch
+      paths:
+        - deployment-agent-config/ # Can handle folders
+      workdir: deployment-agent-config
+      command: "make up-${TARGET_ARCHITECTURE}" # Check for changes, if change, then exit deployment agent
+      exitDeploymentAgentWithErrorCode: 1
   docker_private_registries:
     # lists registries and their credentials if necessary to check for services to download from
     - url: ${DOCKER_HUB_URL}

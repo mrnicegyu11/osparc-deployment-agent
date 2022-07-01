@@ -1,2 +1,2 @@
-pyyaml
+pyyaml #TODO: Version pinning from oSparc Simcore, or maybe with "poetry"
 environs
