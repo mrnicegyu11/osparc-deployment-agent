@@ -31,6 +31,8 @@ fi
 
 echo "  APP_CONFIG is: ${APP_CONFIG}"
 
+ssh-keyscan -H github.com >> /home/${SC_USER_NAME}/.ssh/known_hosts
+
 # RUNNING application ----------------------------------------
 if [ "${SC_BOOT_MODE}" = "debug-ptvsd" ]
 then

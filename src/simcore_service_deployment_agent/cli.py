@@ -14,12 +14,16 @@ Why does this file exist, and why not put this in __main__?
 
 """
 import argparse
+import asyncio
 import json
 import logging
 import os
 import sys
 
+from environs import Env
+
 from . import application, cli_config
+from .git_url_watcher import GitUrlWatcher
 
 log = logging.getLogger(__name__)
 
@@ -66,14 +70,46 @@ def parse(args, _parser):
 
 
 def main(config=None):
-    config = parse(config, parser)
-
-    log_level = config["main"]["log_level"]
+    ####
+    ### D E P L O Y M E N T   A G E N T
+    ####
+    env = Env()
+    # 1. Logging
+    log_level = env("LOG_LEVEL", "INFO")  # Default is info if nothing is set
     logging.basicConfig(
         level=getattr(logging, log_level),
         format="[%(asctime)s] %(levelname)s: {%(pathname)s:%(lineno)d} - %(message)s",
     )
     logging.getLogger().setLevel(getattr(logging, log_level))
+    # 2. Fetch config-file
+    config_file_source = env("CONFIG_FILE_SOURCE", "git")  # Default is file
+    if config_file_source == "git":
+        # CONFIG_FILE_GIT_USER = env("CONFIG_FILE_GIT_USER")
+        # CONFIG_FILE_GIT_PASS = env("CONFIG_FILE_GIT_PASS")
+        CONFIG_FILE_GIT_URL = env("CONFIG_FILE_GIT_URL")
+        CONFIG_FILE_GIT_BRANCH = env("CONFIG_FILE_GIT_BRANCH")
+        CONFIG_FILE_GIT_PATH = env("CONFIG_FILE_GIT_PATH")
+        git_repo_config = {
+            "id": "deployement_agent_main_config",
+            "url": CONFIG_FILE_GIT_URL,
+            "branch": CONFIG_FILE_GIT_BRANCH,
+            "pull_only_files": False,
+            "username": "",
+            "password": "",
+            "paths": [CONFIG_FILE_GIT_PATH],
+            "workdir": ".",
+            "command": "sleep 1",
+        }
+        git_repo = GitUrlWatcher(git_repo_config)
+        asyncio.run(git_repo.init())
+        print(git_repo.watched_repo)
+        config = parse(
+            ["--config", git_repo.watched_repo.directory + "/" + CONFIG_FILE_GIT_PATH],
+            parser,
+        )
+    else:
+        log.error("Config wrong - no git repo for config file specified")
+        exit(1)
 
     log.debug("We read the following configuration:")
     log.debug(json.dumps(config, indent=4, sort_keys=True))

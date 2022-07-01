@@ -37,18 +37,20 @@ SWARM_HOSTS            = $(shell docker node ls --format="{{.Hostname}}" 2>$(if 
 docker-compose-configs = $(wildcard docker-compose*.yml)
 get_my_ip := $(shell hostname --all-ip-addresses | cut --delimiter=" " --fields=1)
 
+.PHONY: .stack.${STACK_NAME}-prod.yml
 .stack.${STACK_NAME}-prod.yml: $(docker-compose-configs)
 	# Creating config for stack with 'local/{service}:production' to $@
 	@export DOCKER_REGISTRY=local \
 	export DOCKER_IMAGE_TAG=production; \
 	docker-compose --file docker-compose.yml --log-level=ERROR config > $@
 
+.PHONY: .stack.${STACK_NAME}-devel.yml
 .stack.${STACK_NAME}-devel.yml:  $(docker-compose-configs)
 	# Creating config for stack with 'local/{service}:dev' to $@
 	@export DOCKER_REGISTRY=local \
 	export DOCKER_IMAGE_TAG=dev; \
 	export DEPLOYMENT_AGENT_CONFIG=deployment_config.devel.yaml; \
-	docker-compose --env-file=.env-devel --file docker-compose.yml --file docker-compose.devel.yaml --log-level=ERROR config > $@
+	docker-compose --file docker-compose.yml --file docker-compose.devel.yaml --log-level=ERROR config > $@
 
 .stack.${STACK_NAME}-version.yml:  $(docker-compose-configs)
 	# Creating config for stack with '$(DOCKER_REGISTRY)/{service}:${DOCKER_IMAGE_TAG}' to $@

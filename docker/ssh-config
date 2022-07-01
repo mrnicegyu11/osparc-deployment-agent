@@ -1,0 +1,6 @@
+# via https://stackoverflow.com/questions/4565700/how-to-specify-the-private-ssh-key-to-use-when-executing-shell-command-on-git
+Host github.com
+    Hostname github.com
+    IdentityFile /id_ed25519.github
+    IdentitiesOnly yes
+    StrictHostKeyChecking no

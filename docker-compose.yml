@@ -15,8 +15,8 @@ services:
       - "8888"
     init: true
     configs:
-      - source: deployment_config
-        target: /home/scu/config-prod.yaml
+      - source: github_privatekey
+        target: /id_ed25519.github
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     env_file:
@@ -28,5 +28,5 @@ services:
         constraints: [node.role == manager]
 
 configs:
-  deployment_config:
-    file: ./${DEPLOYMENT_AGENT_CONFIG}
+  github_privatekey:
+    file: ./ssh_key/id_ed25519
