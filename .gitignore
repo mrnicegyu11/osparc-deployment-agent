@@ -138,3 +138,4 @@ dmypy.json
 
 deployment_config.*
 !deployment_config.template.yaml
+!deployment_config.devel.yaml

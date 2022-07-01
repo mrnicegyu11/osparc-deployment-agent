@@ -1,0 +1,77 @@
+## Runtime configuration for the simcore_service_deployment_agent application.
+##
+version: "1.0"
+rest:
+  version: v0
+  location: oas3/v0/openapi.yaml
+main:
+  log_level: DEBUG
+  host: 127.0.0.1
+  port: 8888
+  deployed_version: "1.32.0" #### --> Maybe better as environment variables, from repo.config? Not in depl-agent
+  watched_git_repositories:
+    - id: simcore-ops-config
+      url: ${GIT_OPS_CONFIG_REPO_URL}
+      branch: ${GIT_OPS_CONFIG_REPO_BRANCH}
+      pull_only_files: true
+      username: ${GIT_OPS_LOGIN}
+      password: ${GIT_OPS_PASSWORD}
+      tags_regex: ^v[0-9]+.[0-9]+.[0-9]+$
+      paths:
+        - services/simcore/docker-compose.deploy.yml
+        - services/simcore/envsubst_escape_dollar_sign.py
+        - services/simcore/.env
+        - repo.config
+      command:
+        - git clone https://github.com/ITISFoundation/osparc-simcore
+        - cd osparc-simcore
+        - git checkout v$(DEPLOYED_VERSION)
+        - cp ../services/simcore/.env .
+        - cp ../services/simcore/docker-compose.deploy.yml .
+        -  mv .env .env.platform
+        - python3 envsubst_escape_dollar_sign.py .env.platform .env.platform.escaped &&
+        - cat .env-devel >> .env.nosub && cat .env.platform.escaped >> .env.nosub &&
+        - envsubst < .env.nosub > .env &&
+        - docker-compose --env-file .env -f services/docker-compose.yml -f docker-compose.deploy.yml config > stack.yml
+        # TODO: Correct dockerhub images
+        # TODO: Add prefix
+        # TODO: Remove services
+        # Check if images are there --> Notifaction
+        # Check if there are changes in the stack, only call docker engine if there are changes
+        - docker stack deploy --with-registry-auth --prune --compose-file stack.yml ${STACK_NAME}
+      ###
+      # Command is a list that only continues if exit code of previous is 0
+      # Pull from GITHUB, with version tag form depl-agent env-var
+      # Modify stack file to have correct dockerhub image tags
+      # Add prefix to services
+      # Remove services (postgres...)
+      # Additional STORAGE_DOMAIN, S3_ACCESS_KEY, S3_SECRET_KEY
+    - id: simcore-ops-stack-adminder
+      url: ${GIT_OPS_STACK_REPO_URL}
+      branch: ${GIT_OPS_STACK_REPO_BRANCH}
+      pull_only_files: true
+      username: ${GIT_OPS_LOGIN}
+      password: ${GIT_OPS_PASSWORD}
+      branch_regex: "^v[0-9]+.[0-9]+.[0-9]+$" # TODO: Can handle branch
+      paths:
+        - adminer/ # Can handle folders
+      workdir: adminer
+      command: "make up-${TARGET_ARCHITECTURE}" ### If returncode is 2, make down and slepp and make up
+    - id: simcore-deployment-agent-config
+      url: ${GIT_OPS_STACK_REPO_URL}
+      branch: ${GIT_OPS_STACK_REPO_BRANCH}
+      pull_only_files: true
+      username: ${GIT_OPS_LOGIN}
+      password: ${GIT_OPS_PASSWORD}
+      branch_regex: "^v[0-9]+.[0-9]+.[0-9]+$" # TODO: Can handle branch
+      paths:
+        - deployment-agent-config/ # Can handle folders
+      workdir: deployment-agent-config
+      command: "make up-${TARGET_ARCHITECTURE}" # Check for changes, if change, then exit deployment agent
+      exitDeploymentAgentWithErrorCode: 1
+  docker_private_registries:
+    # lists registries and their credentials if necessary to check for services to download from
+    - url: ${DOCKER_HUB_URL}
+      username: ${DOCKER_HUB_LOGIN}
+      password: ${DOCKER_HUB_PASSWORD}
+  polling_interval: 60
