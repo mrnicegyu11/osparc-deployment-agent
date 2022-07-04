@@ -70,6 +70,13 @@ def setup(app: web.Application, *, devel=False):
 
     try:
         loop = asyncio.get_event_loop()
+    except RuntimeError as e:
+        log.warning(
+            "No event loop found, creating a new one ...  be careful, this might lead to weird states"
+        )
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+    try:
         location = cfg["location"]
         if not URL(location).host:
             if not Path(location).exists():
