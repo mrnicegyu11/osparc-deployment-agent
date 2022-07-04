@@ -38,7 +38,7 @@ if [ "${SC_BOOT_MODE}" = "debug-ptvsd" ]
 then
   echo
   echo "Debugpy Debugger initializing in port 3000"
-  python3 -m debugpy --listen 0.0.0.0:3000 --wait-for-client -m simcore_service_deployment_agent --config $APP_CONFIG
+  nodemon -L -e '*' -w . --exec "clear; python3 -m debugpy --listen 0.0.0.0:3000 --wait-for-client -m simcore_service_deployment_agent --config $APP_CONFIG"
 else
   simcore-service-deployment-agent --config $APP_CONFIG
 fi

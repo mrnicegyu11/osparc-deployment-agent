@@ -167,7 +167,15 @@ WORKDIR /devel
 
 RUN chown -R scu:scu "${VIRTUAL_ENV}"
 
+
+RUN apt-get update &&\
+  apt-get install -y --no-install-recommends \
+  nodejs npm \
+  && apt-get clean \
+  && rm -rf /var/lib/apt/lists/*
+
 RUN pip --no-cache-dir install --no-cache-dir debugpy
+RUN npm i -g nodemon
 
 ENTRYPOINT [ "/bin/sh", "services/deployment-agent/docker/entrypoint.sh" ]
 CMD ["/bin/sh", "services/deployment-agent/docker/boot.sh"]
