@@ -101,7 +101,7 @@ def main(config=None):
             "command": "sleep 1",
         }
         git_repo = GitUrlWatcher(git_repo_config)
-        asyncio.run(
+        asyncio.get_event_loop().run_until_complete(
             git_repo.init()
         )  # This is likely causing problems since another event loop has to be created? TODO: Investigate this
         print(git_repo.watched_repo)
