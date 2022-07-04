@@ -386,6 +386,23 @@ class GitUrlWatcher(SubTask):
             workdir=config["workdir"] if "workdir" in config else ".",
             command=config["command"],
         )
+        # ASSERTIONS
+        # Extract branch from regex
+        try:
+            if repo.branch_regex != "":
+                log.debug("DEBUG1")
+                log.debug("DEBUG1")
+                pattern = re.compile(repo.branch_regex)
+                if pattern.groups != 1:
+                    log.error(
+                        "NUMBER OF RE PATTERN GROUPS IS: ",
+                        str(int(pattern.groups)),
+                        "BUT NEEDS TO BE EXACTLY !ONE!",
+                    )
+                    raise RuntimeError("branch_regex has number of regex groups != 1")
+        except:
+            log.error("AN EXPECTION OCCURED!")  # FIXmE: Better error handling
+
         self.watched_repo = repo
 
     async def init(self) -> Dict:
