@@ -17,7 +17,13 @@ app_schema = T.Dict(
             T.Dict(
                 {
                     "id": T.String(),
-                    "url": T.URL,
+                    # "url": T.URL,
+                    T.Key("url", optional=False): T.Or(
+                        T.URL,
+                        T.Regexp(
+                            regexp="((git|ssh|http(s)?)|(git@[\w\.]+))(:(//)?)([\w\.@\:/\-~]+)(\.git)(/)?"
+                        ),  # via https://stackoverflow.com/questions/2514859/regular-expression-for-git-repository
+                    ),
                     T.Key("username", optional=True, default=""): T.Or(
                         T.String(allow_blank=True), T.Null
                     ),
