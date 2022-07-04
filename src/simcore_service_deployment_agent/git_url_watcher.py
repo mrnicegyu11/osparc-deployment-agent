@@ -264,7 +264,9 @@ async def _init_repository(repo: GitRepo) -> Dict:
         )
 
     await _checkout_repository(repo, latest_tag)
-    log.info("repository %s checked out on %s", repo, latest_tag)
+    log.info(
+        "repository %s checked out on %s", repo, latest_tag if latest_tag else "HEAD"
+    )
     # If no tag: fetch head
     # if tag: sha of tag
     if repo.tags_regex:
