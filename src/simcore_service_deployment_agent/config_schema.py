@@ -34,11 +34,10 @@ app_schema = T.Dict(
                         allow_blank=True
                     ),
                     T.Key("workdir", default="."): T.String(allow_blank=False),
-                    T.Key("command", optional=False): T.List(
-                        T.String(allow_blank=False), min_length=1
-                    ),
+                    T.Key("command", optional=False): T.String(allow_blank=False),
                     T.Key("pull_only_files", default=False): T.Bool(),
                     T.Key("paths", default=[]): T.List(T.String()),
+                    T.Key("exitCodeOnCommandSuccess", optional=True): T.Int(),
                 }
             ),
             min_length=1,
