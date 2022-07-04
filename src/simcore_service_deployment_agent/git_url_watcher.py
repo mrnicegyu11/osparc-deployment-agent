@@ -390,8 +390,6 @@ class GitUrlWatcher(SubTask):
         # Extract branch from regex
         try:
             if repo.branch_regex != "":
-                log.debug("DEBUG1")
-                log.debug("DEBUG1")
                 pattern = re.compile(repo.branch_regex)
                 if pattern.groups != 1:
                     log.error(
