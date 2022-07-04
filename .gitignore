@@ -139,3 +139,9 @@ dmypy.json
 deployment_config.*
 !deployment_config.template.yaml
 !deployment_config.devel.yaml
+
+#.env-devel
+.env-devel
+
+# SSH Keys
+ssh_key/*
