@@ -82,13 +82,13 @@ def main(config=None):
     )
     logging.getLogger().setLevel(getattr(logging, log_level))
     # 2. Fetch config-file
-    config_file_source = env("CONFIG_FILE_SOURCE", "git")  # Default is file
-    if config_file_source == "git":
+    config_file_source = env("CONFIG_FILE_SOURCE", "GIT")  # Default is git
+    if config_file_source == "GIT":  ## TODO: TEST THIS, TODO Upper/Lowercase
         # CONFIG_FILE_GIT_USER = env("CONFIG_FILE_GIT_USER")
         # CONFIG_FILE_GIT_PASS = env("CONFIG_FILE_GIT_PASS")
         CONFIG_FILE_GIT_URL = env("CONFIG_FILE_GIT_URL")
         CONFIG_FILE_GIT_BRANCH = env("CONFIG_FILE_GIT_BRANCH")
-        CONFIG_FILE_GIT_PATH = env("CONFIG_FILE_GIT_PATH")
+        CONFIG_FILE_PATH = env("CONFIG_FILE_PATH")
         git_repo_config = {
             "id": "deployement_agent_main_config",
             "url": CONFIG_FILE_GIT_URL,
@@ -96,15 +96,23 @@ def main(config=None):
             "pull_only_files": False,
             "username": "",
             "password": "",
-            "paths": [CONFIG_FILE_GIT_PATH],
+            "paths": [CONFIG_FILE_PATH],
             "workdir": ".",
             "command": "sleep 1",
         }
         git_repo = GitUrlWatcher(git_repo_config)
-        asyncio.run(git_repo.init())
+        asyncio.run(
+            git_repo.init()
+        )  # This is likely causing problems since another event loop has to be created? TODO: Investigate this
         print(git_repo.watched_repo)
         config = parse(
-            ["--config", git_repo.watched_repo.directory + "/" + CONFIG_FILE_GIT_PATH],
+            ["--config", git_repo.watched_repo.directory + "/" + CONFIG_FILE_PATH],
+            parser,
+        )
+    elif config_file_source == "FILE":
+        CONFIG_FILE_PATH = env("CONFIG_FILE_PATH")
+        config = parse(
+            ["--config", CONFIG_FILE_PATH],
             parser,
         )
     else:
