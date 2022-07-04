@@ -27,7 +27,7 @@ AUTO_DEPLOY_FAILURE_RETRY_SLEEP = 300  # TODO: As Env var
 async def create_git_watch_subtask(app_config: Dict) -> Tuple[GitUrlWatcher, Dict]:
     log.debug("creating git repo watch subtask")
     listOfGitUrlWatchers = [
-        GitUrlWatcher(i) for i in app_config["main"]["watched_git_repostories"]
+        GitUrlWatcher(i) for i in app_config["main"]["watched_git_repositories"]
     ]
     git_sub_task = GitUrlWatcherGroup(listOfGitUrlWatchers)
     descriptions = await git_sub_task.init()
@@ -35,35 +35,70 @@ async def create_git_watch_subtask(app_config: Dict) -> Tuple[GitUrlWatcher, Dic
 
 
 async def deploy_update_stacks(app_config: Dict, git_task: GitUrlWatcherGroup):
-    if app_config["deployed_version"] != "":
+    if app_config["main"]["deployed_version"] != "":
         # Assert that all watches repos have the matching version present in branch or tag
         for repo in git_task.watched_repos:
-            if repo.branch_regex != "":
+            if repo.watched_repo.branch_regex != "":
                 # repo get branches
                 # filter by regex
                 # find matching branch
                 # check out branch
-                repo.checkout_branch(app_config["deployed_version"])
-                repo.pull()
+
+                ####
+                # Here, create the branch-name to be checked out by substituting the
+                ####
+                await repo.checkout_branch(app_config["main"]["deployed_version"])
+                await repo.pull()
                 # Run command
 
-            elif repo.tags_regex != "":
+            elif repo.watched_repo.tags_regex != "":
                 # (repo assert correct branch checkout)
                 # repo get tags
                 # find matching tag
                 # check out tag
-                repo.pull()
-                repo.checkout_tag(app_config["deployed_version"])
+                await repo.pull()
+                await repo.checkout_tag(app_config["main"]["deployed_version"])
                 # Run command
                 # Restore state?
             else:
-                raise RuntimeError(
-                    "Config wrong, cannot use branch_regex and tags_regex."
-                )
+                # TODO: Handle autoupdate of given branch
+                changes = await repo.check_for_changes()
+                if changes != {}:
+                    # Update
+                    try:
+                        await run_cmd_line_unsafe(
+                            cmd=repo.watched_repo.command,
+                            cwd_=repo.watched_repo.workdir,
+                        )
+                        current_git_repo_config = next(
+                            (
+                                x
+                                for x in app_config["main"]["watched_git_repositories"]
+                                if x.id == repo.watched_repo.id
+                            ),
+                            None,
+                        )
+                        if current_git_repo_config:
+                            if current_git_repo_config.exitCodeOnCommandSuccess:
+                                exit(current_git_repo_config.exitCodeOnCommandSuccess)
+                        else:
+                            raise CmdLineError(
+                                "Something went wrong."
+                            )  # FIXME: Better error statement
+                    except CmdLineError:
+                        log.error(
+                            "Failed to run command: %s ", " && ".join(repo.command)
+                        )
+                        log.error("Aborting deployment!")
+                        break
             try:
-                run_cmd_line_unsafe(cmd=" && ".join(repo.command), cwd_=repo.workdir)
+                await run_cmd_line_unsafe(
+                    cmd=repo.watched_repo.command, cwd_=repo.watched_repo.workdir
+                )
             except CmdLineError:
-                log.error("Failed to run command: %s ", " && ".join(repo.command))
+                log.error(
+                    "Failed to run command: %s ", " && ".join(repo.watched_repo.command)
+                )
                 log.error("Aborting deployment!")
                 break
             # Check out the tag everywhere: How would this work with the git_url_watcher?
@@ -74,11 +109,14 @@ async def deploy_update_stacks(app_config: Dict, git_task: GitUrlWatcherGroup):
             if changes != {}:
                 # Update
                 try:
-                    run_cmd_line_unsafe(
-                        cmd=" && ".join(repo.command), cwd_=repo.workdir
+                    await run_cmd_line_unsafe(
+                        cmd=repo.watched_repo.command, cwd_=repo.watched_repo.workdir
                     )
                 except CmdLineError:
-                    log.error("Failed to run command: %s ", " && ".join(repo.command))
+                    log.error(
+                        "Failed to run command: %s ",
+                        " && ".join(repo.watched_repo.command),
+                    )
                     log.error("Aborting deployment!")
                     break
     return
@@ -104,6 +142,7 @@ async def _deploy(
             app_session,
             message=f"Stack deployed with:\n{list(descriptions.values())}",
         )
+        # TODO: Notification is wrong I guess
         main_repo = app_config["main"]["docker_stack_recipe"]["workdir"]
         await notify_state(
             app_config,
@@ -124,9 +163,16 @@ async def auto_deploy(app: web.Application):
     app_session = app[TASK_SESSION_NAME]
     # Check config
     for repo in app_config["main"]["watched_git_repositories"]:
-        assert not ("branch-regex" not in repo and "tags-regex" not in repo)
-        assert not ("branch-regex" in repo and "tags-regex" in repo)
-        assert not ("branch-regex" in repo and "branch" not in repo)
+        if (
+            (
+                repo["branch_regex"] == ""
+                and repo["tags_regex"] == ""
+                and repo["branch"] == ""
+            )
+            or (repo["branch_regex"] != "" and repo["tags_regex"] != "")
+            or (repo["branch_regex"] != "" and repo["branch"] == "")
+        ):
+            raise RuntimeError("Wrong repo config for repo ", repo.watched_repo.id)
     # init
     try:
         await _deploy(app)
@@ -143,7 +189,9 @@ async def auto_deploy(app: web.Application):
         try:
             app["state"][TASK_NAME] = State.RUNNING
             await _deploy(app)
-            await asyncio.sleep(app_config["main"]["polling_interval"])
+            sleepInterval = app_config["main"]["polling_interval"]
+            log.debug("Sleeping for ", sleepInterval, "seconds...")
+            await asyncio.sleep(sleepInterval)
         except asyncio.CancelledError:
             log.info("cancelling task...")
             app["state"][TASK_NAME] = State.STOPPED
@@ -159,6 +207,8 @@ async def auto_deploy(app: web.Application):
                     state=app["state"][TASK_NAME],
                     message=str(exc),
                 )
+            sleepInterval = AUTO_DEPLOY_FAILURE_RETRY_SLEEP
+            log.debug("Sleeping for ", AUTO_DEPLOY_FAILURE_RETRY_SLEEP, "seconds...")
             await asyncio.sleep(AUTO_DEPLOY_FAILURE_RETRY_SLEEP)
         finally:
             # cleanup the subtasks
