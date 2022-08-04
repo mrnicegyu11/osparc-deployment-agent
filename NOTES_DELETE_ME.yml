@@ -1,0 +1,39 @@
+#master
+#grafana:
+#  - image: dockerhub/grafana
+#  - version: 10.4.4
+#  - command: docker stack deploy -with-autho grafana...
+
+simcore:
+  - repo: osparc-simcore
+  - branch: master
+  - commmand:
+
+
+#dalco-prod
+grafana:
+  - repos:
+    - gitlab.osparc-ops-environment
+  - image: dockerhub/grafana
+  - version: 10.1.0
+  - command: docker stack deploy -with-autho grafana...
+
+#simcore:
+#  - repos:
+#    - github.osparc-simcore
+#  - branch: v1.31.0
+#  - commmand: >|
+#    - git clone https://github.com/ITISFoundation/osparc-simcore
+#    - cd osparc-simcore
+#    - git checkout v$(DEPLOYED_VERSION)
+#    - cp ../services/simcore/.env .
+#    - cp ../services/simcore/docker-compose.deploy.yml .
+#    -  mv .env .env.platform
+#    - python3 envsubst_escape_dollar_sign.py .env.platform .env.platform.escaped &&
+#    - cat .env-devel >> .env.nosub && cat .env.platform.escaped >> .env.nosub &&
+#    - envsubst < .env.nosub > .env &&
+#    - docker-compose --env-file .env -f services/docker-compose.yml -f docker-compose.deploy.yml config > stack.yml
+#    # TODO: Correct dockerhub images
+#    # TODO: Add prefix
+#    # TODO: Remove services
+#    - docker stack deploy --with-registry-auth --prune --compose-file stack.yml ${STACK_NAME}
