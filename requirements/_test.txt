@@ -117,7 +117,7 @@ pytest-aiohttp==1.0.4
     # via -r requirements/_test.in
 pytest-asyncio==0.17.2
     # via pytest-aiohttp
-pytest-cov==3.0.0
+pytest-cov==4.0.0
     # via -r requirements/_test.in
 pytest-forked==1.4.0
     # via pytest-xdist
