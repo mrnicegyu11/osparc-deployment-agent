@@ -35,7 +35,7 @@ charset-normalizer==3.0.1
     #   -c requirements/_base.txt
     #   aiohttp
     #   requests
-codecov==2.1.12
+codecov==2.1.13
     # via -r requirements/_test.in
 coverage==6.5.0
     # via
@@ -95,9 +95,7 @@ pluggy==1.0.0
 pprintpp==0.4.0
     # via pytest-icdiff
 ptvsd==4.3.2
-    # via
-    #   -c requirements/_base.txt
-    #   -r requirements/_test.in
+    # via -r requirements/_test.in
 pylint==2.16.3
     # via -r requirements/_test.in
 pytest==7.2.2
@@ -128,7 +126,7 @@ pytest-runner==6.0.0
     # via -r requirements/_test.in
 pytest-simcore @ git+https://github.com/ITISFoundation/osparc-simcore.git@v1.49.0#subdirectory=packages/pytest-simcore
     # via -r requirements/_test.in
-pytest-sugar==0.9.6
+pytest-sugar==0.9.7
     # via -r requirements/_test.in
 pytest-xdist==3.2.0
     # via -r requirements/_test.in
@@ -152,9 +150,7 @@ urllib3==1.26.14
     #   -c requirements/_base.txt
     #   requests
 werkzeug==2.2.3
-    # via
-    #   -c requirements/_base.txt
-    #   -r requirements/_test.in
+    # via -r requirements/_test.in
 wrapt==1.15.0
     # via astroid
 yarl==1.8.2
