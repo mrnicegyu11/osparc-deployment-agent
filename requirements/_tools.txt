@@ -4,7 +4,7 @@
 #
 #    pip-compile --output-file=requirements/_tools.txt --resolver=backtracking --strip-extras requirements/_tools.in
 #
-black==23.1.0
+black==23.9.1
     # via -r requirements/devenv.txt
 build==0.10.0
     # via pip-tools
